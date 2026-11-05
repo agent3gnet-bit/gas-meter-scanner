@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+PIL/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+venv/
+ENV/
+
+# Buildozer
+.buildozer/
+bin/
+*.apk
+*.aab
+*.ap_
+
+# Build
+GasMeterReader.spec
+GasMeterReader/
+build/
+dist/
+develop-eggs/
+logs/
+*.manifest
+*.exe
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+
+# Excel temporary
+~$*.xlsx
