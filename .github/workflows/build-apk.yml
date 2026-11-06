@@ -1,14 +1,11 @@
-name: Build GasMeterReader APK
+name: Build Android APK
 
 on:
   push:
-    branches: [ main, master ]
-    paths-ignore:
-      - '**.md'
-      - '**.txt'
+    branches: [ main ]
   pull_request:
-    branches: [ main, master ]
-  workflow_dispatch:  # Ручной запуск
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build-android:
@@ -24,144 +21,37 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Cache buildozer dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.buildozer
-            ~/.local
-          key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
-          restore-keys: |
-            ${{ runner.os }}-buildozer-
-
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            python3-pip \
-            build-essential \
-            git \
-            python3-dev \
-            libsdl2-dev \
-            libsdl2-image-dev \
-            libsdl2-mixer-dev \
-            libsdl2-ttf-dev \
-            libportmidi-dev \
-            libswscale-dev \
-            libavformat-dev \
-            libavcodec-dev \
-            zlib1g-dev \
-            libgstreamer1.0 \
-            gstreamer1.0-plugins-base \
-            gstreamer1.0-plugins-good \
-            openjdk-17-jdk-headless \
-            zip \
-            unzip \
-            autoconf \
-            automake \
-            libtool \
-            libltdl-dev \
-            pkg-config \
-            cmake \
-            ninja-build
+            python3-pip build-essential git python3-dev \
+            libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
+            libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev \
+            zlib1g-dev libgstreamer1.0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+            openjdk-17-jdk-headless zip unzip autoconf automake libtool libltdl-dev \
+            tesseract-ocr tesseract-ocr-eng tesseract-ocr-rus libtesseract-dev
 
-      - name: Upgrade pip
+      - name: Install buildozer and dependencies
         run: |
-          python3 -m pip install --upgrade pip setuptools wheel
-
-      - name: Install buildozer and cython
-        run: |
-          pip install buildozer==1.5.0
-          pip install cython==3.0.11
-
-      - name: Create virtual environment
-        run: |
-          python3 -m venv venv
-          source venv/bin/activate
           pip install --upgrade pip setuptools wheel
-          pip install -r requirements_android.txt
-          echo "VIRTUAL_ENV=venv" >> $GITHUB_ENV
-          echo "$(pwd)/venv/bin" >> $GITHUB_PATH
+          pip install buildozer==1.5.0 cython==3.0.11
+          pip install kivy==2.3.0 kivymd==1.2.1 opencv-python==4.10.0.84 numpy==1.26.4 \
+                      pandas==2.2.3 openpyxl==3.1.5 pillow==11.0.0 pytesseract==0.3.13 \
+                      pyzxing==1.2.2 plyer==2.1.0
 
-      - name: Install Tesseract and its language data
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y tesseract-ocr tesseract-ocr-eng tesseract-ocr-rus
-          sudo apt-get install -y libtesseract-dev
-
-      - name: Check project files
-        run: |
-          echo "=== Project Structure ==="
-          ls -la
-          echo ""
-          echo "=== Checking required files ==="
-          for file in main_android.py ocr_processor.py excel_manager.py config.py buildozer.spec; do
-            if [ -f "$file" ]; then
-              echo "✅ $file found"
-            else
-              echo "❌ $file NOT found!"
-              exit 1
-            fi
-          done
-
-      - name: Build APK (debug)
+      - name: Build APK
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-          export PATH="$(pwd)/venv/bin:$PATH"
+          export ANDROID_HOME=$HOME/android-sdk
+          mkdir -p $ANDROID_HOME
           
-          echo "=== Starting APK Build ==="
-          echo "This may take 15-30 minutes on first run..."
-          
-          # Build APK with buildozer
+          echo "Building APK..."
           buildozer android debug
-          
-        env:
-          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
-          ANDROID_HOME: ${{ github.workspace }}/android-sdk
-          
-      - name: Upload APK artifact
+
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: GasMeterReader-APK
-          path: |
-            bin/*.apk
-            bin/*.aar
+          path: dist/*.apk
           retention-days: 30
-          if-no-files-found: error
-
-      - name: Upload APK to Release (on main branch)
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-        uses: softprops/action-gh-release@v1
-        with:
-          files: bin/*.apk
-          tag_name: v${{ github.run_number }}
-          name: GasMeterReader v${{ github.run_number }}
-          body: |
-            ## 📱 GasMeterReader APK Build
-        
-            Автоматическая сборка из ветки ${{ github.ref_name }}
-        
-            **Версия:** ${{ github.run_number }}
-            **Дата:** ${{ github.event.head_commit.timestamp }}
-        
-            ### 📋 Что включено:
-            - OCR распознавание показаний газовых счётчиков СГД-Г4
-            - Распознавание штрихкодов
-            - Excel: справочник + история
-            - Поддержка 5-значных показаний
-            - Контекстная коррекция цифр
-        
-            ### 📦 Информация:
-            - **Размер:** ~110 МБ
-            - **Требования:** Android 7.0+ (API 21+)
-            - **Разрешения:** Камера, хранилище
-        
-            ### 🔧 Установка:
-            1. Скачайте APK файл ниже
-            2. Скопируйте на телефон
-            3. Разрешите установку из неизвестных источников
-            4. Установите и откройте
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
